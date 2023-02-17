@@ -1,9 +1,11 @@
 name: Deploy
 
 on: 
-  push:
+  pull_request:
     branches:
-      - main
+      - develop
+      - production
+    types: [closed]
 
 env:
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
