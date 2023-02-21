@@ -1,20 +1,22 @@
-name: Deploy
- 
-on: 
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
+name: "CodeQL"
+
+on:
   pull_request:
-    branches:
-      - develop
-      - release
-    types: [closed]
- 
-env:
-  GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/test-image:${{ github.sha }}
-  SERVICE_NAME: nextjs-codescanning-githubactions-cloudrun
-  PORT: 80
-  GCP_REGION: us-central1
-   
+    # The branches below must be a subset of the branches above
+    branches: [ "develop" ]
+  
+
 jobs:
   analyze:
     name: Analyze
@@ -52,8 +54,8 @@ jobs:
 
     # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+    #- name: Autobuild
+    #  uses: github/codeql-action/autobuild@v2
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
@@ -61,54 +63,11 @@ jobs:
     #   If the Autobuild fails above, remove it and uncomment the following three lines.
     #   modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
 
-    # - run: |
-    #     echo "Run, Build Application using script"
-    #     ./location_of_script_within_repo/buildscript.sh
+  　- run: |
+         echo "Run, Build Application using script"
+         ./location_of_script_within_repo/buildscript.sh
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
       with:
         category: "/language:${{matrix.language}}"
-  deploy:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.ref }}
-    steps:
-      # リポジトリをチェックアウト
-      - name: 'Checkout the repository'
-        uses: actions/checkout@v2
- 
-      # GCP 認証
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v0'
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
- 
-      # gcloud コマンドの設定
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
- 
-      # Docker に gcloud コマンドの Credential を使わせる
-      - name: 'Configure docker to use the gcloud cli'
-        run: gcloud auth configure-docker --quiet
- 
-      # Docker イメージを作成
-      - name: 'Build a docker image'
-        run: docker build -t $IMAGE .
- 
-      # Docker イメージを Container Registry に Push
-      - name: 'Push the docker image to Container Registry'
-        run: docker push $IMAGE
- 
-      # Container Registry から Cloud Run へデプロイ
-      - name: 'Deploy to Cloud Run'
-        run: |
-            gcloud run deploy $SERVICE_NAME \
-              --image $IMAGE \
-              --port $PORT \
-              --project $GCP_PROJECT_ID \
-              --region $GCP_REGION \
-              --platform=managed \
-              --allow-unauthenticated \
-              --quiet
