@@ -18,7 +18,7 @@ on:
       - develop
       - release
     types:
-      - review_requested
+      - assigned
       - closed
   
 jobs:
