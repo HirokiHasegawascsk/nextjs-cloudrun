@@ -14,12 +14,13 @@ name: "CodeQL"
 on:
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "develop" ]
-  pull_request:
-    branches: [ "develop" ,"release"]
-    types: [closed]
+    branches:
+      - develop
+      - release
+    types:
+      - review_requested
+      - closed
   
-
 jobs:
   analyze:
     name: Analyze
