@@ -1,21 +1,79 @@
 name: Deploy
-
+ 
 on: 
-  push:
+  pull_request:
     branches:
-      - main
+      - develop
+      - release
+    types: [closed]
 
 env:
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/test-image:${{ github.sha }}
-  SERVICE_NAME: nextjs-githubactions-cloudrun
+  SERVICE_NAME: nextjs-codescanning-githubactions-cloudrun
   PORT: 80
   GCP_REGION: us-central1
-
+   
 jobs:
-  deploy:
+  analyze:
+    name: Analyze
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript' ]
+        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
+        # Use only 'java' to analyze code written in Java, Kotlin or both
+        # Use only 'javascript' to analyze code written in JavaScript, TypeScript or both
+        # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+
+        # Details on CodeQL's query packs refer to : https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
+        # queries: security-extended,security-and-quality
+
+
+    # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
+    # If this step fails, then you should remove it and run the build manually (see below)
+    #- name: Autobuild
+    #  uses: github/codeql-action/autobuild@v2
+
+    # ℹ️ Command-line programs to run using the OS shell.
+    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
+
+    #   If the Autobuild fails above, remove it and uncomment the following three lines.
+    #   modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
+
+    #- run: |
+    #     echo "Run, Build Application using script"
+    #     ./location_of_script_within_repo/buildscript.sh
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:${{matrix.language}}"
+  deploy:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref }}
     steps:
       # リポジトリをチェックアウト
       - name: 'Checkout the repository'
@@ -26,7 +84,7 @@ jobs:
         uses: 'google-github-actions/auth@v0'
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-
+ 
       # gcloud コマンドの設定
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v0'
@@ -34,7 +92,7 @@ jobs:
       # Docker に gcloud コマンドの Credential を使わせる
       - name: 'Configure docker to use the gcloud cli'
         run: gcloud auth configure-docker --quiet
-  
+ 
       # Docker イメージを作成
       - name: 'Build a docker image'
         run: docker build -t $IMAGE .
@@ -42,7 +100,7 @@ jobs:
       # Docker イメージを Container Registry に Push
       - name: 'Push the docker image to Container Registry'
         run: docker push $IMAGE
-
+ 
       # Container Registry から Cloud Run へデプロイ
       - name: 'Deploy to Cloud Run'
         run: |
